@@ -72,6 +72,7 @@ class Adafruit_CCS811 {
 		~Adafruit_CCS811(void) {};
 		
 		bool begin(uint8_t addr = CCS811_ADDRESS);
+        	bool begin(TwoWire*, uint8_t addr = CCS811_ADDRESS);
 
 		void setEnvironmentalData(uint8_t humidity, double temperature);
 
@@ -119,17 +120,18 @@ class Adafruit_CCS811 {
 	private:
 		uint8_t _i2caddr;
 		float _tempOffset;
+        	TwoWire *_wire;
 		
 		uint16_t _TVOC;
 		uint16_t _eCO2;
 		
 		void      write8(byte reg, byte value);
 		void      write16(byte reg, uint16_t value);
-        uint8_t   read8(byte reg);
+        	uint8_t   read8(byte reg);
 		
-		void read(uint8_t reg, uint8_t *buf, uint8_t num);
+	        bool init();
+        	void read(uint8_t reg, uint8_t *buf, uint8_t num);
 		void write(uint8_t reg, uint8_t *buf, uint8_t num);
-		void _i2c_init();
 		
 /*=========================================================================
 	REGISTER BITFIELDS

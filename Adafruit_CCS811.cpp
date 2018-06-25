@@ -7,11 +7,29 @@
     @returns True if device is set up, false on any failure
 */
 /**************************************************************************/
+
+bool Adafruit_CCS811::begin(TwoWire *theWire, uint8_t addr)
+{
+    _i2caddr = addr;
+	_wire = theWire;
+
+	return init();
+}
+
 bool Adafruit_CCS811::begin(uint8_t addr)
 {
 	_i2caddr = addr;
-	
-	_i2c_init();
+	_wire = &Wire;
+
+	return init();
+};
+
+bool Adafruit_CCS811::init()
+{
+	_wire->begin();
+#ifdef ESP8266
+	_wire->setClockStretchLimit(500);
+#endif
 
 	SWReset();
 	delay(100);
@@ -199,7 +217,7 @@ void Adafruit_CCS811::SWReset()
 }
 
 /**************************************************************************/
-/*! 
+/*!
     @brief   read the status register and store any errors.
     @returns the error bits from the status register of the device.
 */
@@ -237,30 +255,22 @@ uint8_t Adafruit_CCS811::read8(byte reg)
 	return ret;
 }
 
-void Adafruit_CCS811::_i2c_init()
-{
-	Wire.begin();
-	#ifdef ESP8266
-	Wire.setClockStretchLimit(500);
-	#endif
-}
 
 void Adafruit_CCS811::read(uint8_t reg, uint8_t *buf, uint8_t num)
 {
-	uint8_t value;
 	uint8_t pos = 0;
 	
 	//on arduino we need to read in 32 byte chunks
 	while(pos < num){
 		
 		uint8_t read_now = min((uint8_t)32, (uint8_t)(num - pos));
-		Wire.beginTransmission((uint8_t)_i2caddr);
-		Wire.write((uint8_t)reg + pos);
-		Wire.endTransmission();
-		Wire.requestFrom((uint8_t)_i2caddr, read_now);
-		
+		_wire->beginTransmission((uint8_t)_i2caddr);
+		_wire->write((uint8_t)reg + pos);
+		_wire->endTransmission();
+		_wire->requestFrom((uint8_t)_i2caddr, read_now);
+
 		for(int i=0; i<read_now; i++){
-			buf[pos] = Wire.read();
+			buf[pos] = _wire->read();
 			pos++;
 		}
 	}
@@ -268,8 +278,8 @@ void Adafruit_CCS811::read(uint8_t reg, uint8_t *buf, uint8_t num)
 
 void Adafruit_CCS811::write(uint8_t reg, uint8_t *buf, uint8_t num)
 {
-	Wire.beginTransmission((uint8_t)_i2caddr);
-	Wire.write((uint8_t)reg);
-	Wire.write((uint8_t *)buf, num);
-	Wire.endTransmission();
+	_wire->beginTransmission((uint8_t)_i2caddr);
+	_wire->write((uint8_t)reg);
+	_wire->write((uint8_t *)buf, num);
+	_wire->endTransmission();
 }
