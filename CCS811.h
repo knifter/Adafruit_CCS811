@@ -31,20 +31,20 @@ class CCS811 : public TwoWireDevice {
             DRIVE_MODE_250MS = 0x04,
         } DriveMode_t;
 
-		bool begin();
-		void reset();
+        bool begin();
+        void reset();
 
-		void setEnvironmentalData(const uint8_t humidity, double temperature);
+        void setEnvironmentalData(const uint8_t humidity, double temperature);
 
-		//calculate temperature based on the NTC register
-		double calculateTemperature();
+        //calculate temperature based on the NTC register
+        double calculateTemperature();
 
-		void setThresholds(const uint16_t low_med, const uint16_t med_high, const uint8_t hysteresis = 50);
+        void setThresholds(const uint16_t low_med, const uint16_t med_high, const uint8_t hysteresis = 50);
 
 
-		void setDriveMode(const CCS811::DriveMode_t mode);
-		void enableInterrupt();
-		void disableInterrupt();
+        void setDriveMode(const CCS811::DriveMode_t mode);
+        void enableInterrupt();
+        void disableInterrupt();
 
         /**************************************************************************/
         /*!
