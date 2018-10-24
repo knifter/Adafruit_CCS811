@@ -7,7 +7,6 @@
 
 // CONFIG
 #define CCS811_ADDRESS_DEFAULT      (0x5A)
-#define CCS811_HW_ID_CODE           0x81
 #define CCS811_REF_RESISTOR         100000
 
 /**************************************************************************/
@@ -17,10 +16,10 @@
 /**************************************************************************/
 class CCS811 : public TwoWireDevice {
 	public:
+		//constructors
 		CCS811(TwoWire* wire, const uint8_t addr = CCS811_ADDRESS_DEFAULT)  : TwoWireDevice(wire, addr) {};
 		CCS811(const uint8_t addr = CCS811_ADDRESS_DEFAULT) : TwoWireDevice(addr) {};
-
-		bool begin();
+        ~CCS811() {};
 
         // Public Data
         typedef enum
@@ -32,18 +31,16 @@ class CCS811 : public TwoWireDevice {
             DRIVE_MODE_250MS = 0x04,
         } DriveMode_t;
 
-		//constructors
-//		CCS811(void) {};
-//		~CCS811(void) {};
+		bool begin();
+		void reset();
 
-		void setEnvironmentalData(const uint8_t humidity, const double temperature);
+		void setEnvironmentalData(const uint8_t humidity, double temperature);
 
 		//calculate temperature based on the NTC register
 		double calculateTemperature();
 
 		void setThresholds(const uint16_t low_med, const uint16_t med_high, const uint8_t hysteresis = 50);
 
-		void SWReset();
 
 		void setDriveMode(const CCS811::DriveMode_t mode);
 		void enableInterrupt();
@@ -79,33 +76,6 @@ class CCS811 : public TwoWireDevice {
 
 		bool checkError();
     protected:
-        // Registers:
-        enum
-        {
-            REG_STATUS = 0x00,
-            REG_MEAS_MODE = 0x01,
-            REG_ALG_RESULT_DATA = 0x02,
-            REG_RAW_DATA = 0x03,
-            REG_ENV_DATA = 0x05,
-            REG_NTC = 0x06,
-            REG_THRESHOLDS = 0x10,
-            REG_BASELINE = 0x11,
-            REG_HW_ID = 0x20,
-            REG_HW_VERSION = 0x21,
-            REG_FW_BOOT_VERSION = 0x23,
-            REG_FW_APP_VERSION = 0x24,
-            REG_SW_RESET = 0xFF,
-            REG_ERROR_ID = 0xE0,
-        };
-
-        //bootloader registers
-        enum
-        {
-        	BOOTLOADER_APP_ERASE = 0xF1,
-        	BOOTLOADER_APP_DATA = 0xF2,
-        	BOOTLOADER_APP_VERIFY = 0xF3,
-        	BOOTLOADER_APP_START = 0xF4
-        };
 
         /*=========================================================================
 	       REGISTER BITFIELDS
@@ -201,7 +171,7 @@ class CCS811 : public TwoWireDevice {
         error_id_t _error_id;
 
         // Methods
-        bool init();
+        // bool init();
 
         // Other member variables
 		float _tempOffset;

@@ -3,6 +3,27 @@
 #include <stdio.h>
 #include <math.h>
 
+#define REG_STATUS              0x00
+#define REG_MEAS_MODE           0x01
+#define REG_ALG_RESULT_DATA     0x02
+#define REG_RAW_DATA            0x03
+#define REG_ENV_DATA            0x05
+#define REG_NTC                 0x06
+#define REG_THRESHOLDS          0x10
+#define REG_BASELINE            0x11
+#define REG_HW_ID               0x20
+    #define HW_ID_CODE          0x81
+#define REG_HW_VERSION          0x21
+#define REG_FW_BOOT_VERSION     0x23
+#define REG_FW_APP_VERSION      0x24
+#define REG_SW_RESET            0xFF
+#define REG_ERROR_ID            0xE0
+
+#define BOOTLOADER_APP_ERASE    0xF1
+#define BOOTLOADER_APP_DATA     0xF2
+#define BOOTLOADER_APP_VERIFY   0xF3
+#define BOOTLOADER_APP_START    0xF4
+
 /**************************************************************************/
 /*!
     @brief  Setups the I2C interface and hardware and checks for communication.
@@ -18,20 +39,22 @@ bool CCS811::begin()
 	_wire->setClockStretchLimit(500);
 #endif
 
-	SWReset();
+	reset();
 	delay(100);
 
 	//check that the HW id is correct
-	if(read8(CCS811::REG_HW_ID) != CCS811_HW_ID_CODE)
+	if(read8(REG_HW_ID) != HW_ID_CODE)
 		return false;
 
 	//try to start the app
-	write(CCS811::BOOTLOADER_APP_START, NULL, 0);
+	write(BOOTLOADER_APP_START, NULL, 0);
 	delay(100);
 
 	//make sure there are no errors and we have entered application mode
-	if(checkError()) return false;
-	if(!_status.FW_MODE) return false;
+	if(checkError()) 
+        return false;
+	if(!_status.FW_MODE) 
+        return false;
 
 	disableInterrupt();
 
@@ -172,7 +195,6 @@ double CCS811::calculateTemperature()
 	ntc_temp = 1.0 / ntc_temp; // 4
 	ntc_temp -= 273.15; // 5
 	return ntc_temp - _tempOffset;
-
 }
 
 /**************************************************************************/
@@ -196,10 +218,10 @@ void CCS811::setThresholds(const uint16_t low_med, const uint16_t med_high, cons
     @brief  trigger a software reset of the device
 */
 /**************************************************************************/
-void CCS811::SWReset()
+void CCS811::reset()
 {
 	//reset sequence from the datasheet
-	uint8_t seq[] = {0x11, 0xE5, 0x72, 0x8A};
+    uint8_t seq[4] = {0x11, 0xE5, 0x72, 0x8A};
 	write(REG_SW_RESET, seq, 4);
 }
 
