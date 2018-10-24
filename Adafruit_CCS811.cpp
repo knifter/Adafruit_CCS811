@@ -1,4 +1,7 @@
-#include "Adafruit_CCS811.h"
+#include "CCS811.h"
+
+#include <stdio.h>
+#include <math.h>
 
 /**************************************************************************/
 /*!
@@ -7,26 +10,10 @@
     @returns True if device is set up, false on any failure
 */
 /**************************************************************************/
-
-bool Adafruit_CCS811::begin(TwoWire *theWire, uint8_t addr)
+bool CCS811::begin()
 {
-    _i2caddr = addr;
-	_wire = theWire;
+	TwoWireDevice::begin();
 
-	return init();
-}
-
-bool Adafruit_CCS811::begin(uint8_t addr)
-{
-	_i2caddr = addr;
-	_wire = &Wire;
-
-	return init();
-};
-
-bool Adafruit_CCS811::init()
-{
-	_wire->begin();
 #ifdef ESP8266
 	_wire->setClockStretchLimit(500);
 #endif
@@ -35,11 +22,11 @@ bool Adafruit_CCS811::init()
 	delay(100);
 
 	//check that the HW id is correct
-	if(this->read8(CCS811_HW_ID) != CCS811_HW_ID_CODE)
+	if(read8(CCS811::REG_HW_ID) != CCS811_HW_ID_CODE)
 		return false;
 
 	//try to start the app
-	this->write(CCS811_BOOTLOADER_APP_START, NULL, 0);
+	write(CCS811::BOOTLOADER_APP_START, NULL, 0);
 	delay(100);
 
 	//make sure there are no errors and we have entered application mode
@@ -49,7 +36,7 @@ bool Adafruit_CCS811::init()
 	disableInterrupt();
 
 	//default to read every second
-	setDriveMode(CCS811_DRIVE_MODE_1SEC);
+	setDriveMode(CCS811::DRIVE_MODE_250MS);
 
 	return true;
 }
@@ -59,10 +46,10 @@ bool Adafruit_CCS811::init()
     @brief  sample rate of the sensor.
     @param  mode one of CCS811_DRIVE_MODE_IDLE, CCS811_DRIVE_MODE_1SEC, CCS811_DRIVE_MODE_10SEC, CCS811_DRIVE_MODE_60SEC, CCS811_DRIVE_MODE_250MS.
 */
-void Adafruit_CCS811::setDriveMode(uint8_t mode)
+void CCS811::setDriveMode(const DriveMode_t mode)
 {
 	_meas_mode.DRIVE_MODE = mode;
-	this->write8(CCS811_MEAS_MODE, _meas_mode.get());
+	write8(REG_MEAS_MODE, _meas_mode.get());
 }
 
 /**************************************************************************/
@@ -70,10 +57,10 @@ void Adafruit_CCS811::setDriveMode(uint8_t mode)
     @brief  enable the data ready interrupt pin on the device.
 */
 /**************************************************************************/
-void Adafruit_CCS811::enableInterrupt()
+void CCS811::enableInterrupt()
 {
 	_meas_mode.INT_DATARDY = 1;
-	this->write8(CCS811_MEAS_MODE, _meas_mode.get());
+	write8(REG_MEAS_MODE, _meas_mode.get());
 }
 
 /**************************************************************************/
@@ -81,10 +68,10 @@ void Adafruit_CCS811::enableInterrupt()
     @brief  disable the data ready interrupt pin on the device
 */
 /**************************************************************************/
-void Adafruit_CCS811::disableInterrupt()
+void CCS811::disableInterrupt()
 {
 	_meas_mode.INT_DATARDY = 0;
-	this->write8(CCS811_MEAS_MODE, _meas_mode.get());
+	write8(REG_MEAS_MODE, _meas_mode.get());
 }
 
 /**************************************************************************/
@@ -93,12 +80,12 @@ void Adafruit_CCS811::disableInterrupt()
     @returns True if data is ready, false otherwise.
 */
 /**************************************************************************/
-bool Adafruit_CCS811::available()
+bool CCS811::available()
 {
-	_status.set(read8(CCS811_STATUS));
-	if(!_status.DATA_READY)
-		return false;
-	else return true;
+	_status.set(read8(REG_STATUS));
+	if(_status.DATA_READY)
+		return true;
+    return false;
 }
 
 /**************************************************************************/
@@ -107,22 +94,22 @@ bool Adafruit_CCS811::available()
     @returns 0 if no error, error code otherwise.
 */
 /**************************************************************************/
-uint8_t Adafruit_CCS811::readData()
+uint8_t CCS811::readData()
 {
 	if(!available())
-		return false;
-	else{
-		uint8_t buf[8];
-		this->read(CCS811_ALG_RESULT_DATA, buf, 8);
+		return 1;
 
-		_eCO2 = ((uint16_t)buf[0] << 8) | ((uint16_t)buf[1]);
-		_TVOC = ((uint16_t)buf[2] << 8) | ((uint16_t)buf[3]);
+	uint8_t buf[8];
+	read(REG_ALG_RESULT_DATA, buf, 8);
 
-		if(_status.ERROR)
-			return buf[5];
+	_eCO2 = ((uint16_t)buf[0] << 8) | ((uint16_t)buf[1]);
+	_TVOC = ((uint16_t)buf[2] << 8) | ((uint16_t)buf[3]);
 
-		else return 0;
-	}
+    // TODO: _status is not updated?
+	if(_status.ERROR)
+		return buf[5];
+
+	return 0;
 }
 
 /**************************************************************************/
@@ -132,7 +119,7 @@ uint8_t Adafruit_CCS811::readData()
     @param temperature the temperature in degrees C as a decimal number. For 25.5 degrees C, pass in 25.5
 */
 /**************************************************************************/
-void Adafruit_CCS811::setEnvironmentalData(uint8_t humidity, double temperature)
+void CCS811::setEnvironmentalData(const uint8_t humidity, double temperature)
 {
 	/* Humidity is stored as an unsigned 16 bits in 1/512%RH. The
 	default value is 50% = 0x64, 0x00. As an example 48.5%
@@ -157,7 +144,7 @@ void Adafruit_CCS811::setEnvironmentalData(uint8_t humidity, double temperature)
 	uint8_t buf[] = {hum_perc, 0x00,
 		(uint8_t)((temp_conv >> 8) & 0xFF), (uint8_t)(temp_conv & 0xFF)};
 
-	this->write(CCS811_ENV_DATA, buf, 4);
+	write(REG_ENV_DATA, buf, 4);
 
 }
 
@@ -167,10 +154,10 @@ void Adafruit_CCS811::setEnvironmentalData(uint8_t humidity, double temperature)
     @returns temperature as a double.
 */
 /**************************************************************************/
-double Adafruit_CCS811::calculateTemperature()
+double CCS811::calculateTemperature()
 {
 	uint8_t buf[4];
-	this->read(CCS811_NTC, buf, 4);
+	read(REG_NTC, buf, 4);
 
 	uint32_t vref = ((uint32_t)buf[0] << 8) | buf[1];
 	uint32_t vntc = ((uint32_t)buf[2] << 8) | buf[3];
@@ -196,12 +183,12 @@ double Adafruit_CCS811::calculateTemperature()
     @param hysteresis optional histeresis level. Defaults to 50
 */
 /**************************************************************************/
-void Adafruit_CCS811::setThresholds(uint16_t low_med, uint16_t med_high, uint8_t hysteresis)
+void CCS811::setThresholds(const uint16_t low_med, const uint16_t med_high, const uint8_t hysteresis)
 {
 	uint8_t buf[] = {(uint8_t)((low_med >> 8) & 0xF), (uint8_t)(low_med & 0xF),
 	(uint8_t)((med_high >> 8) & 0xF), (uint8_t)(med_high & 0xF), hysteresis};
 
-	this->write(CCS811_THRESHOLDS, buf, 5);
+	write(REG_THRESHOLDS, buf, 5);
 }
 
 /**************************************************************************/
@@ -209,77 +196,21 @@ void Adafruit_CCS811::setThresholds(uint16_t low_med, uint16_t med_high, uint8_t
     @brief  trigger a software reset of the device
 */
 /**************************************************************************/
-void Adafruit_CCS811::SWReset()
+void CCS811::SWReset()
 {
 	//reset sequence from the datasheet
 	uint8_t seq[] = {0x11, 0xE5, 0x72, 0x8A};
-	this->write(CCS811_SW_RESET, seq, 4);
+	write(REG_SW_RESET, seq, 4);
 }
 
 /**************************************************************************/
 /*!
     @brief   read the status register and store any errors.
-    @returns the error bits from the status register of the device.
+    @returns if the error bit from the status register of the device is set.
 */
 /**************************************************************************/
-bool Adafruit_CCS811::checkError()
+bool CCS811::checkError()
 {
-	_status.set(read8(CCS811_STATUS));
+	_status.set(read8(REG_STATUS));
 	return _status.ERROR;
-}
-
-/**************************************************************************/
-/*!
-    @brief  write one byte of data to the specified register
-    @param  reg the register to write to
-    @param  value the value to write
-*/
-/**************************************************************************/
-void Adafruit_CCS811::write8(byte reg, byte value)
-{
-	this->write(reg, &value, 1);
-}
-
-/**************************************************************************/
-/*!
-    @brief  read one byte of data from the specified register
-    @param  reg the register to read
-    @returns one byte of register data
-*/
-/**************************************************************************/
-uint8_t Adafruit_CCS811::read8(byte reg)
-{
-	uint8_t ret;
-	this->read(reg, &ret, 1);
-
-	return ret;
-}
-
-
-void Adafruit_CCS811::read(uint8_t reg, uint8_t *buf, uint8_t num)
-{
-	uint8_t pos = 0;
-
-	//on arduino we need to read in 32 byte chunks
-	while(pos < num){
-
-		uint8_t read_now = min((uint8_t)32, (uint8_t)(num - pos));
-		_wire->beginTransmission((uint8_t)_i2caddr);
-		_wire->write((uint8_t)reg + pos);
-		_wire->endTransmission();
-		_wire->requestFrom((uint8_t)_i2caddr, read_now);
-
-		for(int i=0; i<read_now; i++){
-			buf[pos] = _wire->read();
-			pos++;
-		}
-	}
-}
-
-void Adafruit_CCS811::write(uint8_t reg, uint8_t *buf, uint8_t num)
-{
-	_wire->beginTransmission((uint8_t)_i2caddr);
-	_wire->write((uint8_t)reg);
-	_wire->write((uint8_t *)buf, num);
-	_wire->endTransmission();
 }
