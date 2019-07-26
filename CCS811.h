@@ -17,7 +17,7 @@
 class CCS811 : public TwoWireDevice {
 	public:
 		//constructors
-		CCS811(TwoWire* wire, const uint8_t addr = CCS811_ADDRESS_DEFAULT)  : TwoWireDevice(wire, addr) {};
+		CCS811(TwoWire& wire, const uint8_t addr = CCS811_ADDRESS_DEFAULT)  : TwoWireDevice(wire, addr) {};
 		CCS811(const uint8_t addr = CCS811_ADDRESS_DEFAULT) : TwoWireDevice(addr) {};
         ~CCS811() {};
 

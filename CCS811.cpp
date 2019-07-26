@@ -43,7 +43,7 @@ bool CCS811::begin()
 	delay(100);
 
 	//check that the HW id is correct
-	if(read8(REG_HW_ID) != HW_ID_CODE)
+	if(readreg8(REG_HW_ID) != HW_ID_CODE)
 		return false;
 
 	//try to start the app
@@ -72,7 +72,7 @@ bool CCS811::begin()
 void CCS811::setDriveMode(const DriveMode_t mode)
 {
 	_meas_mode.DRIVE_MODE = mode;
-	write8(REG_MEAS_MODE, _meas_mode.get());
+	writereg8(REG_MEAS_MODE, _meas_mode.get());
 }
 
 /**************************************************************************/
@@ -83,7 +83,7 @@ void CCS811::setDriveMode(const DriveMode_t mode)
 void CCS811::enableInterrupt()
 {
 	_meas_mode.INT_DATARDY = 1;
-	write8(REG_MEAS_MODE, _meas_mode.get());
+	writereg8(REG_MEAS_MODE, _meas_mode.get());
 }
 
 /**************************************************************************/
@@ -94,7 +94,7 @@ void CCS811::enableInterrupt()
 void CCS811::disableInterrupt()
 {
 	_meas_mode.INT_DATARDY = 0;
-	write8(REG_MEAS_MODE, _meas_mode.get());
+	writereg8(REG_MEAS_MODE, _meas_mode.get());
 }
 
 /**************************************************************************/
@@ -105,7 +105,7 @@ void CCS811::disableInterrupt()
 /**************************************************************************/
 bool CCS811::available()
 {
-	_status.set(read8(REG_STATUS));
+	_status.set(readreg8(REG_STATUS));
 	if(_status.DATA_READY)
 		return true;
     return false;
@@ -233,6 +233,6 @@ void CCS811::reset()
 /**************************************************************************/
 bool CCS811::checkError()
 {
-	_status.set(read8(REG_STATUS));
+	_status.set(readreg8(REG_STATUS));
 	return _status.ERROR;
 }
