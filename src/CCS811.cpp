@@ -33,28 +33,56 @@
 /**************************************************************************/
 bool CCS811::begin()
 {
-	TwoWireDevice::begin();
+	if(!TwoWireDevice::begin())
+	{
+#ifdef DEBUG
+		Serial.printf("CCS811: Error: wire.begin() failed.\n");
+#endif
+		return false;
+	};
 
 #ifdef ESP8266
 	_wire->setClockStretchLimit(500);
 #endif
 
 	reset();
+	if(_last_error)
+    {
+#ifdef DEBUG
+		Serial.printf("CCS811: Error: wire.begin() failed: %s\n", last_error_text());
+#endif
+        return false;	
+	};
 	delay(100);
 
 	//check that the HW id is correct
 	if(readreg8(REG_HW_ID) != HW_ID_CODE)
+	{
+#ifdef DEBUG
+		Serial.printf("CCS811: Error HW_ID = %x != %x\n", readreg8(REG_HW_ID), HW_ID_CODE);
+#endif
 		return false;
+	};
 
 	//try to start the app
-	write(BOOTLOADER_APP_START, NULL, 0);
+	writereg(BOOTLOADER_APP_START, NULL, 0);
 	delay(100);
 
 	//make sure there are no errors and we have entered application mode
 	if(checkError()) 
+	{
+#ifdef DEBUG
+		Serial.printf("CCS811: Error: status=ERROR, i2c=%s\n", last_error_text());
+#endif
         return false;
-	if(!_status.FW_MODE) 
+	};
+	if(!_status.FW_MODE)
+	{
+#ifdef DEBUG
+		Serial.printf("CCS811: Error: status=!FW_MODE, i2c=%s\n", last_error_text());
+#endif
         return false;
+	};
 
 	disableInterrupt();
 
@@ -123,12 +151,12 @@ uint8_t CCS811::readData()
 		return 1;
 
 	uint8_t buf[8];
-	read(REG_ALG_RESULT_DATA, buf, 8);
+	readreg(REG_ALG_RESULT_DATA, buf, 8);
 
 	_eCO2 = ((uint16_t)buf[0] << 8) | ((uint16_t)buf[1]);
 	_TVOC = ((uint16_t)buf[2] << 8) | ((uint16_t)buf[3]);
 
-    // TODO: _status is not updated?
+	_status.set(readreg8(REG_STATUS));
 	if(_status.ERROR)
 		return buf[5];
 
@@ -167,7 +195,7 @@ void CCS811::setEnvironmentalData(const uint8_t humidity, double temperature)
 	uint8_t buf[] = {hum_perc, 0x00,
 		(uint8_t)((temp_conv >> 8) & 0xFF), (uint8_t)(temp_conv & 0xFF)};
 
-	write(REG_ENV_DATA, buf, 4);
+	writereg(REG_ENV_DATA, buf, 4);
 
 }
 
@@ -180,7 +208,7 @@ void CCS811::setEnvironmentalData(const uint8_t humidity, double temperature)
 double CCS811::calculateTemperature()
 {
 	uint8_t buf[4];
-	read(REG_NTC, buf, 4);
+	readreg(REG_NTC, buf, 4);
 
 	uint32_t vref = ((uint32_t)buf[0] << 8) | buf[1];
 	uint32_t vntc = ((uint32_t)buf[2] << 8) | buf[3];
@@ -210,7 +238,7 @@ void CCS811::setThresholds(const uint16_t low_med, const uint16_t med_high, cons
 	uint8_t buf[] = {(uint8_t)((low_med >> 8) & 0xF), (uint8_t)(low_med & 0xF),
 	(uint8_t)((med_high >> 8) & 0xF), (uint8_t)(med_high & 0xF), hysteresis};
 
-	write(REG_THRESHOLDS, buf, 5);
+	writereg(REG_THRESHOLDS, buf, 5);
 }
 
 /**************************************************************************/
@@ -222,7 +250,7 @@ void CCS811::reset()
 {
 	//reset sequence from the datasheet
     uint8_t seq[4] = {0x11, 0xE5, 0x72, 0x8A};
-	write(REG_SW_RESET, seq, 4);
+	writereg(REG_SW_RESET, seq, 4);
 }
 
 /**************************************************************************/

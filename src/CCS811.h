@@ -6,6 +6,7 @@
 #include <TwoWireDevice.h>
 
 // CONFIG
+// #define DEBUG
 #define CCS811_ADDRESS_DEFAULT      (0x5A)
 #define CCS811_REF_RESISTOR         100000
 
